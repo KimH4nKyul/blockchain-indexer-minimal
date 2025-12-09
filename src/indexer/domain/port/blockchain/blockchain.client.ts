@@ -1,3 +1,4 @@
 export abstract class BlockchainClient {
-  public abstract isConnected(): Promise<boolean>;
+  public abstract isConnected(): boolean;
+  public abstract getBlockNumber(): Promise<bigint>;
 }

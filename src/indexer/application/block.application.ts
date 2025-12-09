@@ -1,11 +1,15 @@
-import {Injectable} from "@nestjs/common";
-import {BlockchainClient} from "../domain/port/blockchain/blockchain.client";
+import { Injectable } from '@nestjs/common';
+import { BlockService } from '../domain/service/block.service';
 
 @Injectable()
 export class BlockApplication {
-  constructor(private readonly blockchainClient: BlockchainClient) {}
+  constructor(private readonly blockService: BlockService) {}
 
-  public async isConnected(): Promise<boolean> {
-    return this.blockchainClient.isConnected();
+  public status(): boolean {
+    return this.blockService.isAlive();
+  }
+
+  public async latestBlockNumber(): Promise<bigint> {
+    return await this.blockService.latestBlockNumber();
   }
 }

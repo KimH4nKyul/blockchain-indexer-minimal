@@ -6,8 +6,14 @@ export class IndexerHealthChecker {
   constructor(private readonly blockService: BlockApplication) {
   }
 
-  @Get('/health')
-  public async isAlive(): Promise<boolean> {
-    return this.blockService.isConnected();
+  @Get('/status')
+  public status(): boolean {
+    return this.blockService.status();
+  }
+
+  @Get('/block/latest')
+  public async latestBlockNumber(): Promise<string> {
+    const number: bigint = await this.blockService.latestBlockNumber();
+    return number.toString();
   }
 }
