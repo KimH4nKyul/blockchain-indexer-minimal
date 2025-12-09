@@ -25,6 +25,7 @@ import { PrismaLogRepository } from './infrastructure/repository/prisma/log.repo
 import { PrismaTransactionReceiptRepository } from './infrastructure/repository/prisma/transaction-receipt.repository.impl';
 import { LoggerPort } from './domain/port/logger/logger.port';
 import { NestLoggerAdapter } from './infrastructure/logger/nest.logger';
+import { IndexerScheduler } from './entry-point/cron/indexer.scheduler';
 
 @Module({
   controllers: [
@@ -42,6 +43,7 @@ import { NestLoggerAdapter } from './infrastructure/logger/nest.logger';
     LogService,
     IndexerService,
     PrismaService,
+    IndexerScheduler,
     {
       provide: BlockchainClient,
       useClass: EthereumClient,
