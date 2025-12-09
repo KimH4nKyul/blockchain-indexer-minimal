@@ -1,14 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { sepolia } from 'viem/chains';
-import {
-  createPublicClient,
-  fallback,
-  http,
-  PublicClient,
-  webSocket,
-  Address,
-  Hex,
-} from 'viem';
+import type { PublicClient, Hex, Address } from 'viem';
 import {
   BlockchainClient,
   IBlock,
@@ -133,12 +124,17 @@ export class EthereumClient extends BlockchainClient implements OnModuleInit {
     return this.connectionStatus;
   }
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     const RPC_URL = process.env.RPC_URL || '';
     const WS_URL = process.env.WS_URL || '';
     this.logger.log(
       `initializing ethereum client... RPC: ${RPC_URL}, WS: ${WS_URL}`,
     );
+
+    const { createPublicClient, fallback, http, webSocket } = await import(
+      'viem'
+    );
+    const { sepolia } = await import('viem/chains');
 
     const transport = fallback([
       webSocket(WS_URL, {

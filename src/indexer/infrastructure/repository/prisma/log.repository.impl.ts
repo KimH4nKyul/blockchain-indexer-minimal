@@ -5,7 +5,7 @@ import {
 } from '../../../domain/port/repository/log.repository';
 import { Log } from '../../../domain/model/log.model';
 import { PrismaService } from './prisma.service';
-import { Prisma } from '../../../../generated/client/client.js';
+import { Prisma } from '../../../../generated/client/client';
 
 @Injectable()
 export class PrismaLogRepository extends LogRepository {
