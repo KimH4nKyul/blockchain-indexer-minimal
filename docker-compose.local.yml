@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:17-bullseye
+    container_name: indexer-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: indexer-db
+      POSTGRES_USER: indexer-user
+      POSTGRES_PASSWORD: indexer1!
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - indexer-infra-net
+
+  redis:
+    image: redis:7-alpine # TODO: bookwarm이나 default로 변경
+    container_name: indexer-redis
+    ports:
+      - "6379:6379"
+    #    command: redis-server --appendonly yes TODO: 장애복구를 위해 주석 해
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - indexer-infra-net
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: indexer-kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    volumes:
+      - "kafka_data:/var/lib/kafka/data"
+    environment:
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_NODE_ID: "0"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@indexer-kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+    networks:
+      - indexer-infra-net
+
+volumes:
+  mysql_data:
+    driver: local
+  kafka_data:
+    driver: local
+  pg_data:
+    driver: local
+  redis_data:
+    driver: local
+networks:
+  indexer-infra-net:
+    driver: bridge

@@ -1,0 +1,9 @@
+model Block {
+  hash         String               @id
+  number       BigInt               @unique
+  timestamp    BigInt
+  transactions Transaction[]
+  receipts     TransactionReceipt[]
+  logs         Log[]
+  createdAt    DateTime             @default(now())
+}

@@ -1,4 +1,12 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  "exclude": [
+    ".husky",
+    "node_modules",
+    "test",
+    "coverage",
+    "dist",
+    "**/*spec.ts",
+    "**/*test.ts"
+  ]
 }

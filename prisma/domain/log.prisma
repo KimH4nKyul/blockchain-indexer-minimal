@@ -1,0 +1,16 @@
+model Log {
+  id                   Int    @id @default(autoincrement())
+  address              String
+  topics               String // Stored as JSON string
+  data                 String
+  blockHash            String
+  transactionHash      String
+  logIndex             Int
+  transactionReceiptId String
+
+  block              Block              @relation(fields: [blockHash], references: [hash])
+  transaction        Transaction        @relation(fields: [transactionHash], references: [hash])
+  transactionReceipt TransactionReceipt @relation(fields: [transactionReceiptId], references: [transactionHash])
+
+  createdAt DateTime @default(now())
+}
