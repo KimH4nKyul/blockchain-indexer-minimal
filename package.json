@@ -77,6 +77,10 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@shared/infrastructure$": "<rootDir>/shared/infrastructure/index",
+      "^@shared/infrastructure/(.*)$": "<rootDir>/shared/infrastructure/database/$1"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
