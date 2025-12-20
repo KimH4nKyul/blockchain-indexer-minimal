@@ -7,12 +7,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,shared}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -24,7 +24,7 @@
     "prisma:generate:local": "env-cmd -f .env prisma generate",
     "prisma:migrate:local": "env-cmd -f .env prisma migrate dev",
     "prisma:studio:local": "env-cmd -f .env prisma studio",
-    "compose:local": "docker compose -f docker-compose.local.yml up -d",
+    "compose-up:local": "docker compose -f docker-compose.local.yml up -d",
     "compose-down:local": "docker compose -f docker-compose.local.yml down -v"
   },
   "dependencies": {

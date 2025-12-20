@@ -1,9 +1,15 @@
 model Block {
-  hash         String               @id
-  number       BigInt               @unique
-  timestamp    BigInt
+  hash             String   @id @db.VarChar()
+  number           BigInt   @unique @db.BigInt
+  parentHash       String   @db.VarChar()
+  timestamp        DateTime @db.Timestamptz()
+  miner            String   @db.VarChar()
+  transactionCount Int      @db.Integer
+  gasUsed          BigInt   @db.BigInt
+  gasLimit         BigInt   @db.BigInt
+
   transactions Transaction[]
   receipts     TransactionReceipt[]
   logs         Log[]
-  createdAt    DateTime             @default(now())
+  createdAt    DateTime             @default(now()) @db.Timestamptz()
 }

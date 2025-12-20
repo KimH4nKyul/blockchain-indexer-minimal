@@ -20,14 +20,22 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    "include": [
-      "src/**/*"
-    ],
-    "exclude": [
-      ".husky",
-      "node_modules",
-      "dist",
-      "coverage"
-    ]
-  }
+    "paths": {
+      "@shared/infrastructure": [
+        "shared/infrastructure/index"
+      ],
+      "@shared/infrastructure/*": [
+        "shared/infrastructure/database/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    ".husky",
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
 }

@@ -4,7 +4,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -12,17 +12,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Block {
-  hash         String               @id
-  number       BigInt               @unique
-  timestamp    BigInt
+  hash             String   @id @db.VarChar()
+  number           BigInt   @unique @db.BigInt
+  parentHash       String   @db.VarChar()
+  timestamp        DateTime @db.Timestamptz()
+  miner            String   @db.VarChar()
+  transactionCount Int      @db.Integer
+  gasUsed          BigInt   @db.BigInt
+  gasLimit         BigInt   @db.BigInt
+
   transactions Transaction[]
   receipts     TransactionReceipt[]
   logs         Log[]
-  createdAt    DateTime             @default(now())
+  createdAt    DateTime             @default(now()) @db.Timestamptz()
 }
-
 
 model Log {
   id                   Int    @id @default(autoincrement())
@@ -40,7 +44,6 @@ model Log {
 
   createdAt DateTime @default(now())
 }
-
 
 model Transaction {
   hash      String              @id
