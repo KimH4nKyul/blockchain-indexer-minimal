@@ -12,6 +12,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model Block {
   hash             String   @id @db.VarChar()
   number           BigInt   @unique @db.BigInt
@@ -28,6 +29,7 @@ model Block {
   createdAt    DateTime             @default(now()) @db.Timestamptz()
 }
 
+
 model Log {
   id                   Int    @id @default(autoincrement())
   address              String
@@ -43,7 +45,12 @@ model Log {
   transactionReceipt TransactionReceipt @relation(fields: [transactionReceiptId], references: [transactionHash])
 
   createdAt DateTime @default(now())
+
+  @@index([blockHash])
+  @@index([transactionHash])
+  @@index([transactionReceiptId])
 }
+
 
 model Transaction {
   hash      String              @id
@@ -56,6 +63,8 @@ model Transaction {
   receipt   TransactionReceipt?
   logs      Log[]
   createdAt DateTime            @default(now())
+
+  @@index([blockHash])
 }
 
 model TransactionReceipt {
@@ -72,4 +81,6 @@ model TransactionReceipt {
   transaction Transaction @relation(fields: [transactionHash], references: [hash])
 
   createdAt DateTime @default(now())
+
+  @@index([blockHash])
 }

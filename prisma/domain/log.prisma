@@ -13,4 +13,8 @@ model Log {
   transactionReceipt TransactionReceipt @relation(fields: [transactionReceiptId], references: [transactionHash])
 
   createdAt DateTime @default(now())
+
+  @@index([blockHash])
+  @@index([transactionHash])
+  @@index([transactionReceiptId])
 }

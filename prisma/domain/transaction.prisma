@@ -9,6 +9,8 @@ model Transaction {
   receipt   TransactionReceipt?
   logs      Log[]
   createdAt DateTime            @default(now())
+
+  @@index([blockHash])
 }
 
 model TransactionReceipt {
@@ -25,4 +27,6 @@ model TransactionReceipt {
   transaction Transaction @relation(fields: [transactionHash], references: [hash])
 
   createdAt DateTime @default(now())
+
+  @@index([blockHash])
 }
