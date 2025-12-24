@@ -1,7 +1,8 @@
 import { Block } from '../block';
 
 export abstract class BlockchainClient {
-  abstract getBlockNumber(): Promise<bigint>;
-  abstract getBlock(blockNumber: bigint): Promise<Block>;
-  abstract getBlocks(from: bigint, to: bigint): Promise<Block[]>;
+  abstract currentBlockNumber(): Promise<bigint>;
+  abstract fetchBlock(blockNumber: bigint): Promise<Block>;
+  abstract fetchBlocks(from: bigint, to: bigint): Promise<Block[]>;
+  abstract fetchBlocksInParallel(from: bigint, to: bigint): Promise<Block[]>;
 }
