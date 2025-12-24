@@ -1,14 +1,15 @@
 import {
   Injectable,
   Logger,
+  OnApplicationBootstrap,
   OnModuleDestroy,
-  OnModuleInit,
 } from '@nestjs/common';
 import { BlockService } from '../domain/service/block.service';
 
 // TODO: BlockFetcher는 사용자 UX를 위해 실시간성을 챙기고, CanonicalBlockFetcher를 별도로 두어 안정적으로 시스템을 운영해야 한다.
+// TODO: 동기화 중에 RPC 노드에 아직 전파되지 못한 최신 블록을 가져오는 시도로 에러가 발생하기 때문에 SAFE_STEP 도입 고려해 봐야 한다.
 @Injectable()
-export class BlockFetcher implements OnModuleInit, OnModuleDestroy {
+export class BlockFetcher implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BlockFetcher.name);
   private isRunning: boolean = false;
 
@@ -21,8 +22,8 @@ export class BlockFetcher implements OnModuleInit, OnModuleDestroy {
 
   // Node.js의 싱글 스레드 이벤트 루프를 차단하지 않으면서도, 블록이 많을 때는 빠르게, 없을 때는 리소스를 아끼며 동작하는 Fetcher가 되어야 한다.
   // 과거에 고려했던 것은 NestJS에서 제공하는 @Cron와 @Interval 이었다.
-  onModuleInit() {
-    this.logger.log('👋 Block fetcher initialized');
+  onApplicationBootstrap() {
+    this.logger.log('🚀 Block fetcher initialized');
     this.isRunning = true;
 
     const loop = async () => {
