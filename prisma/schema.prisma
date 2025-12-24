@@ -24,31 +24,28 @@ model Block {
   gasLimit         BigInt   @db.BigInt
 
   transactions Transaction[]
-  receipts     TransactionReceipt[]
   logs         Log[]
-  createdAt    DateTime             @default(now()) @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
 }
 
 
 model Log {
-  id                   Int    @id @default(autoincrement())
-  address              String
-  topics               String // Stored as JSON string
-  data                 String
-  blockHash            String
-  transactionHash      String
-  logIndex             Int
-  transactionReceiptId String
+  id              Int    @id @default(autoincrement())
+  address         String
+  topics          String // Stored as JSON string
+  data            String
+  blockHash       String
+  transactionHash String
+  logIndex        Int
 
-  block              Block              @relation(fields: [blockHash], references: [hash])
-  transaction        Transaction        @relation(fields: [transactionHash], references: [hash])
-  transactionReceipt TransactionReceipt @relation(fields: [transactionReceiptId], references: [transactionHash])
+  block       Block       @relation(fields: [blockHash], references: [hash])
+  transaction Transaction @relation(fields: [transactionHash], references: [hash])
 
   createdAt DateTime @default(now())
 
   @@index([blockHash])
   @@index([transactionHash])
-  @@index([transactionReceiptId])
 }
 
 
@@ -59,10 +56,12 @@ model Transaction {
   value     BigInt
   input     String
   blockHash String
-  block     Block               @relation(fields: [blockHash], references: [hash])
   receipt   TransactionReceipt?
   logs      Log[]
-  createdAt DateTime            @default(now())
+
+  block Block @relation(fields: [blockHash], references: [hash])
+
+  createdAt DateTime @default(now())
 
   @@index([blockHash])
 }
@@ -75,9 +74,7 @@ model TransactionReceipt {
   to              String?
   gasUsed         BigInt
   status          String // 'success' or 'reverted'
-  logs            Log[]
 
-  block       Block       @relation(fields: [blockHash], references: [hash])
   transaction Transaction @relation(fields: [transactionHash], references: [hash])
 
   createdAt DateTime @default(now())
