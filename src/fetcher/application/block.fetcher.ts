@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { BlockService } from '../domain/service/block.service';
 
-// TODO: BlockFetcher는 사용자 UX를 위해 실시간성을 챙기고, BlockCanonicalFetcher를 별도로 두어 안정적으로 시스템을 운영해야 한다.
+// TODO: BlockFetcher는 사용자 UX를 위해 실시간성을 챙기고, CanonicalBlockFetcher를 별도로 두어 안정적으로 시스템을 운영해야 한다.
 @Injectable()
 export class BlockFetcher implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BlockFetcher.name);
@@ -50,7 +50,8 @@ export class BlockFetcher implements OnModuleInit, OnModuleDestroy {
           // setTimeout으로 처리할 블록이 없거나 에러 발생 시에 대기 시간을 두어 리소스를 절약하고 API 부하를 줄였다.
           setTimeout(() => {
             void loop();
-          }, 3000); // TODO: 이더리움의 블록 생성 시간 / 2 만큼으로 설정해 적절한 속도로 동기화하도록 한다.
+          }, 3000); // TODO: 이더리움의 블록 생성 시간 / 4 만큼으로 설정해 UX를 위해 빠른 속도로 블록을 저장하도록 한다. (1초는 너무 잦은 요청으로 RPC 비용 증가)
+          // TODO: 추후 실제 트랜잭션 내역을 반영하기 위해 CanonicalBlockFetcher 에서 한 블록 생성 주기인 12초로 설정해 Reorg 방지 + 안정적 운영 지원
         }
       } catch (error) {
         this.logger.error('❌ Error in block fetcher loop:', error);
