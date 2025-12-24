@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BlockchainClient } from '../../domain/component/blockchain.client';
 import { Block } from '../../domain/block';
 import { createPublicClient, http, PublicClient } from 'viem';
@@ -11,17 +11,27 @@ export class BlockchainViemClient
   extends BlockchainClient
   implements OnModuleInit
 {
+  private readonly logger: Logger = new Logger(BlockchainClient.name);
+  private client: PublicClient;
+
   constructor(private readonly configService: ConfigService) {
     super();
   }
 
-  private client: PublicClient;
-
-  async getBlockNumber(): Promise<bigint> {
-    return this.client.getBlockNumber({ cacheTime: 0 });
+  async currentBlockNumber(): Promise<bigint> {
+    try {
+      return await this.client.getBlockNumber({ cacheTime: 0 });
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('BigInt')) {
+        this.logger.warn(
+          `⚠️ RPC Node returned bad response for blockNumber. Retrying...`,
+        );
+      }
+      throw error;
+    }
   }
 
-  public async getBlock(blockNumber: bigint): Promise<Block> {
+  public async fetchBlock(blockNumber: bigint): Promise<Block> {
     const block = await this.client.getBlock({
       blockNumber,
       includeTransactions: true,
@@ -38,13 +48,24 @@ export class BlockchainViemClient
   // 자동으로 JSON-RPC Batch Request로 묶어 전송한다.
   // 요청하려는 블록 범위(to - from)가 매우 클 경우, RPC 제공자가 요청이 너무 크다며 거부할 수 있다.
   // TODO: batchSize 설정을 추가하여 안정성을 강화해야 한다. (선택: Nms 동안 요청을 모아 보내는 wait 옵션) => Infura에서 너무 많은 요청과 깊은 페이로드로 인해 차단
-  public async getBlocks(from: bigint, to: bigint): Promise<Block[]> {
+  public async fetchBlocks(from: bigint, to: bigint): Promise<Block[]> {
     const blocks: Block[] = [];
     for (let i = from; i <= to; i++) {
-      const block = await this.getBlock(i);
+      const block = await this.fetchBlock(i);
       blocks.push(block);
     }
     return blocks;
+  }
+
+  public async fetchBlocksInParallel(
+    from: bigint,
+    to: bigint,
+  ): Promise<Block[]> {
+    const promises: Promise<Block>[] = [];
+    for (let i = from; i <= to; i++) {
+      promises.push(this.fetchBlock(i));
+    }
+    return await Promise.all(promises);
   }
 
   onModuleInit() {
@@ -56,9 +77,14 @@ export class BlockchainViemClient
     }
 
     // 블록을 배치로 가져올 수 있도록 배칭 활성화
+    const batchSize = this.configService.get<number>('BATCH_SIZE') ?? 5;
     this.client = createPublicClient({
       chain: sepolia,
-      transport: http(rpcUrl),
+      transport: http(rpcUrl, {
+        batch: { batchSize, wait: 50 },
+        retryCount: 2,
+        retryDelay: 2000,
+      }),
     });
   }
 }
