@@ -37,7 +37,7 @@ export class BlockchainViemClient
   // viem은 짧은 시간(이벤트 루프의 한 틱) 동안 발생하는 여러 개의 요청을 감지해
   // 자동으로 JSON-RPC Batch Request로 묶어 전송한다.
   // 요청하려는 블록 범위(to - from)가 매우 클 경우, RPC 제공자가 요청이 너무 크다며 거부할 수 있다.
-  // TODO: batchSize 설정을 추가하여 안정성을 강화해야 한다. (선택: Nms 동안 요청을 모아 보내는 wait 옵션)
+  // TODO: batchSize 설정을 추가하여 안정성을 강화해야 한다. (선택: Nms 동안 요청을 모아 보내는 wait 옵션) => Infura에서 너무 많은 요청과 깊은 페이로드로 인해 차단
   public async getBlocks(from: bigint, to: bigint): Promise<Block[]> {
     const blocks: Block[] = [];
     for (let i = from; i <= to; i++) {
