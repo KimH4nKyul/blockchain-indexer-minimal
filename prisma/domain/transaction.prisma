@@ -5,10 +5,12 @@ model Transaction {
   value     BigInt
   input     String
   blockHash String
-  block     Block               @relation(fields: [blockHash], references: [hash])
   receipt   TransactionReceipt?
   logs      Log[]
-  createdAt DateTime            @default(now())
+
+  block Block @relation(fields: [blockHash], references: [hash])
+
+  createdAt DateTime @default(now())
 
   @@index([blockHash])
 }
@@ -21,9 +23,7 @@ model TransactionReceipt {
   to              String?
   gasUsed         BigInt
   status          String // 'success' or 'reverted'
-  logs            Log[]
 
-  block       Block       @relation(fields: [blockHash], references: [hash])
   transaction Transaction @relation(fields: [transactionHash], references: [hash])
 
   createdAt DateTime @default(now())

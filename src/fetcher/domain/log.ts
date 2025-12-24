@@ -1,13 +1,12 @@
 export interface LogProps {
-  readonly id: number;
+  readonly id?: bigint;
   readonly address: string;
   readonly topics: string[]; // Stored as JSON string in DB
   readonly data: string;
   readonly blockHash: string;
   readonly transactionHash: string;
   readonly logIndex: number;
-  readonly transactionReceiptId: string;
-  readonly createdAt: Date;
+  readonly createdAt?: Date;
 }
 
 export class Log {
@@ -19,19 +18,18 @@ export class Log {
 
   public toPrimitives(): LogProps {
     return {
-      id: this.props.id,
+      id: this.props.id ?? undefined,
       address: this.props.address,
       topics: this.props.topics,
       data: this.props.data,
       blockHash: this.props.blockHash,
       transactionHash: this.props.transactionHash,
       logIndex: this.props.logIndex,
-      transactionReceiptId: this.props.transactionReceiptId,
-      createdAt: this.props.createdAt,
+      createdAt: this.props.createdAt ?? new Date(),
     };
   }
 
-  get id(): number {
+  get id(): bigint | undefined {
     return this.props.id;
   }
 
@@ -59,11 +57,7 @@ export class Log {
     return this.props.logIndex;
   }
 
-  get transactionReceiptId(): string {
-    return this.props.transactionReceiptId;
-  }
-
-  get createdAt(): Date {
+  get createdAt(): Date | undefined{
     return this.props.createdAt;
   }
 }

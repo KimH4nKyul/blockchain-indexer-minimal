@@ -9,7 +9,7 @@ model Block {
   gasLimit         BigInt   @db.BigInt
 
   transactions Transaction[]
-  receipts     TransactionReceipt[]
   logs         Log[]
-  createdAt    DateTime             @default(now()) @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
 }

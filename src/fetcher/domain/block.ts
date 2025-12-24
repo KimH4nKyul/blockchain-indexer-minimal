@@ -1,3 +1,6 @@
+import { Transaction } from './transaction';
+import { Log } from './log';
+
 export interface BlockProps {
   // 1. 식별자 (Identity)
   readonly number: bigint; // 블록 높이 (Height) - 정렬 및 조회 핵심
