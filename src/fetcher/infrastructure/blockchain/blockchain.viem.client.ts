@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BlockchainClient } from '../../domain/component/blockchain.client';
 import { Block } from '../../domain/block';
-import { createPublicClient, http, PublicClient } from 'viem';
+import { createPublicClient, http, fallback, PublicClient } from 'viem';
 import { sepolia } from 'viem/chains';
 import { ConfigService } from '@nestjs/config';
 
@@ -69,21 +69,26 @@ export class BlockchainViemClient
   }
 
   onModuleInit() {
-    const rpcUrl = this.configService.get<string>('RPC_URL');
-    if (!rpcUrl) {
-      throw new Error(
-        '❌ Fatal Error: .env 파일에 "RPC_URL"이 설정되지 않았습니다.',
-      );
+    const rpcUrls = this.configService.get<string>('RPC_URLS');
+    if (!rpcUrls) {
+      throw new Error('❌ RPC URLS not found');
     }
-
-    // 블록을 배치로 가져올 수 있도록 배칭 활성화
+    const rpcUrlList = rpcUrls.split(',').map((url) => url.trim());
     const batchSize = this.configService.get<number>('BATCH_SIZE') ?? 5;
-    this.client = createPublicClient({
-      chain: sepolia,
-      transport: http(rpcUrl, {
+
+    // 각 URL 마다 동일한 배치/재시도 설정을 가진 http transport 생성
+    const transports = rpcUrlList.map((url) =>
+      http(url, {
         batch: { batchSize, wait: 50 },
         retryCount: 2,
         retryDelay: 2000,
+      }),
+    );
+
+    this.client = createPublicClient({
+      chain: sepolia,
+      transport: fallback(transports, {
+        rank: true, // 응답 속도가 빠른 RPC를 우선적으로 사용
       }),
     });
   }
