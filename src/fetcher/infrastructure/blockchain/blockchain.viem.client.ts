@@ -18,14 +18,20 @@ export class BlockchainViemClient
     super();
   }
 
-  async currentBlockNumber(): Promise<bigint> {
+  async currentBlockNumber(retries = 3): Promise<bigint> {
     try {
       return await this.client.getBlockNumber({ cacheTime: 0 });
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('BigInt')) {
+      if (
+        retries > 0 &&
+        error instanceof TypeError &&
+        error.message.includes('BigInt')
+      ) {
         this.logger.warn(
-          `⚠️ RPC Node returned bad response for blockNumber. Retrying...`,
+          `⚠️ RPC Node returned bad response for blockNumber. Retrying... (${retries} attempts left)`,
         );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return this.currentBlockNumber(retries - 1);
       }
       throw error;
     }
