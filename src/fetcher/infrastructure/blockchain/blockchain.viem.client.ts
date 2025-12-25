@@ -1,7 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BlockchainClient } from '../../domain/component/blockchain.client';
 import { Block } from '../../domain/block';
-import { createPublicClient, http, fallback, PublicClient } from 'viem';
+import {
+  createPublicClient,
+  http,
+  fallback,
+  PublicClient,
+  BlockNotFoundError,
+} from 'viem';
 import { sepolia } from 'viem/chains';
 import { ConfigService } from '@nestjs/config';
 
@@ -37,17 +43,33 @@ export class BlockchainViemClient
     }
   }
 
-  public async fetchBlock(blockNumber: bigint): Promise<Block> {
-    const block = await this.client.getBlock({
-      blockNumber,
-      includeTransactions: true,
-    });
+  public async fetchBlock(blockNumber: bigint, retries = 3): Promise<Block> {
+    try {
+      const block = await this.client.getBlock({
+        blockNumber,
+        includeTransactions: true,
+      });
 
-    return Block.from({
-      ...block,
-      timestamp: new Date(Number(block.timestamp) * 1000),
-      transactionCount: block.transactions.length,
-    });
+      return Block.from({
+        ...block,
+        timestamp: new Date(Number(block.timestamp) * 1000),
+        transactionCount: block.transactions.length,
+      });
+    } catch (error) {
+      if (retries > 0) {
+        if (
+          error instanceof BlockNotFoundError ||
+          (error instanceof TypeError && error.message.includes('BigInt'))
+        ) {
+          this.logger.warn(
+            `⚠️ Failed to fetch block ${blockNumber}. Retrying... (${retries} attempts left)`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return this.fetchBlock(blockNumber, retries - 1);
+        }
+      }
+      throw error;
+    }
   }
 
   // viem은 짧은 시간(이벤트 루프의 한 틱) 동안 발생하는 여러 개의 요청을 감지해
@@ -85,7 +107,7 @@ export class BlockchainViemClient
     // 각 URL 마다 동일한 배치/재시도 설정을 가진 http transport 생성
     const transports = rpcUrlList.map((url) =>
       http(url, {
-        batch: { batchSize, wait: 50 },
+        batch: { batchSize, wait: 100 },
         retryCount: 2,
         retryDelay: 2000,
       }),
