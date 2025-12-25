@@ -68,3 +68,38 @@
 
 ### 8. 회고 (Retrospective)
 외부 데이터를 내부 시스템으로 들여올 때는 Spread 연산자 사용을 지양하고, 항상 경계(Boundary)에서 엄격한 매핑(Mapping)과 정제(Sanitization) 과정을 거쳐야 함을 재확인.
+
+---
+
+## Case 3: 공용 RPC 노드의 전파 지연 및 응답 오류 대응
+
+### 1. 문제 식별 (Issue Identification)
+인덱서가 블록을 동기화하는 과정에서 두 가지 에러가 빈번하게 발생하여 중단됨.
+- `BlockNotFoundError`: 최신 블록 번호를 조회하고 데이터를 요청했으나, 해당 블록을 찾을 수 없음.
+- `TypeError: Cannot convert undefined to a BigInt`: RPC 노드가 `getBlockNumber` 요청에 대해 유효하지 않은 값(undefined)을 반환.
+
+### 2. 문제 정의 (Problem Definition)
+**"분산 환경의 최종 일관성(Eventual Consistency)과 단일 노드의 가용성 문제"**
+공용 RPC 엔드포인트는 여러 노드가 로드 밸런싱되어 있는데, 각 노드 간 블록 전파 속도 차이(Lag)로 인해 `latest` 블록 번호를 반환한 노드와 데이터를 제공하는 노드가 다를 수 있음. 또한, 일시적인 과부하로 잘못된 응답을 보내기도 함.
+
+### 3. 대응 방안 (Proposed Solutions)
+- **A안**: 에러 발생 시 무조건 인덱서를 재시작한다 (PM2 등 활용).
+- **B안**: `BlockFetcher` 루프 전체에 긴 대기 시간을 둔다.
+- **C안**: 데이터 요청 범위를 보수적으로 잡고(`SAFE_STEP` 증가), 실패 시 재시도(Retry) 로직을 적용한다.
+
+### 4. 방안 결정 (Decision)
+**C안 (안전 범위 확장 및 재시도 로직 적용)** 을 채택.
+
+### 5. 결정 근거 (Rationale)
+- **데이터 정합성**: 노드 간 동기화가 확실히 끝난 '안전한 과거' 블록을 가져오는 것이 가장 확실한 해결책.
+- **회복 탄력성(Resilience)**: 일시적인 네트워크/노드 오류는 짧은 대기 후 재시도하면 성공할 확률이 매우 높음. 프로세스를 죽이는 것보다 자체 복구하는 것이 효율적.
+
+### 6. 구현 방법 (Implementation)
+1.  **안전 범위 확장**: `BlockService`의 `SAFE_STEP` 기본값을 `2`에서 `10`으로 증가시켜, 최신 블록보다 10개 뒤의 블록을 수집하도록 변경.
+2.  **재시도 로직 추가**: `BlockchainViemClient`의 `currentBlockNumber`와 `fetchBlock` 메서드에 에러(`BlockNotFoundError`, `TypeError`) 발생 시 1초 대기 후 최대 3회 재시도하는 로직 구현.
+
+### 7. 최종 결과 (Final Result)
+`BlockNotFoundError`와 `TypeError`가 발생해도 인덱서가 멈추지 않고, 잠시 후 정상적으로 블록을 가져와 동기화를 지속함.
+
+### 8. 회고 (Retrospective)
+분산 시스템 연동 시에는 '항상 성공한다'는 가정보다 '실패할 수 있다'는 전제 하에 방어적인 코드(Defensive Programming)를 작성해야 함을 확인. 특히 공용 인프라를 사용할 때는 넉넉한 버퍼(Buffer)와 재시도 전략이 필수적임.
