@@ -41,10 +41,10 @@ export class BlockFetcher implements OnApplicationBootstrap, OnModuleDestroy {
         // I/O 대기 없이 빠르게 처리하되, 이벤트 루프에 제어권을 잠시 반환해 다른 작업이 끼어들 수 있게 구현했다.
         if (processedCount > 0) {
           this.logger.log(`✅ Synced ${processedCount} blocks`);
-          // setImmediate로 블록을 처리했을 때는 즉시 다음 작업을 예약해 동기화 속도를 최대한 높이고, 이벤트 루프를 막지 않는다.
-          setImmediate(() => {
+          // RPC 노드 과부하 방지를 위해 배치 처리 사이에 1초의 지연(Throttling)을 둡니다.
+          setTimeout(() => {
             void loop();
-          });
+          }, 1000);
         } else {
           this.logger.log('💤 No new blocks found. Waiting for next poll...');
           // 더 이상 가져올 블록이 없다면 일정 시간 대기 후 재귀 호출한다. 이것이 폴링 간격이 된다.
