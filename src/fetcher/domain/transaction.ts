@@ -8,9 +8,11 @@ export interface TransactionProps {
   readonly value: bigint;
   readonly input: string;
   readonly blockHash: string;
-  readonly receipt: Receipt | null;
-  readonly logs: Log[];
+
   readonly createdAt?: Date;
+
+  readonly receipt?: Receipt;
+  readonly logs: Log[];
 }
 
 export class Transaction {
@@ -58,7 +60,7 @@ export class Transaction {
     return this.props.blockHash;
   }
 
-  get receipt(): Receipt | null {
+  get receipt(): Receipt | undefined {
     return this.props.receipt;
   }
 

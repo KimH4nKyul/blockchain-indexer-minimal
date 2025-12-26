@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BlockchainClient } from '../../domain/component/blockchain.client';
 import { Block } from '../../domain/block';
+import { Transaction } from '../../domain/transaction';
 import {
   createPublicClient,
   http,
@@ -49,10 +50,27 @@ export class BlockchainViemClient
         includeTransactions: true,
       });
 
+      // Viem의 Raw Transaction 객체를 도메인 Transaction 엔티티로 변환
+      // TODO: 한 블록에 포함된 트랜잭션 개수가 적지 않기 떄문에 별도 백그라운드 프로세서를 통해 처리하도록 하면서 동시에 블록 정보와 일치해야 함 
+      const transactions = block.transactions.map((tx) =>
+        Transaction.from({
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: tx.value,
+          input: tx.input,
+          blockHash: tx.blockHash,
+          receipt: undefined, // getBlock 응답에는 Receipt 정보가 포함되지 않음
+          logs: [], // getBlock 응답에는 Log 정보가 포함되지 않음
+          createdAt: new Date(Number(block.timestamp) * 1000),
+        }),
+      );
+
       return Block.from({
         ...block,
         timestamp: new Date(Number(block.timestamp) * 1000),
         transactionCount: block.transactions.length,
+        transactions: transactions,
       });
     } catch (error) {
       if (retries > 0) {

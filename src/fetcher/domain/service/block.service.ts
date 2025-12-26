@@ -3,6 +3,9 @@ import { BlockchainClient } from '../component/blockchain.client';
 import { Block } from '../block';
 import { BlockRepository } from '../repository/block.repository';
 import { ConfigService } from '@nestjs/config';
+import { ReceiptRepository } from '../repository/receipt.repository';
+import { TransactionRepository } from '../repository/transaction.repository';
+import { Transaction } from '../transaction';
 
 @Injectable()
 export class BlockService {
@@ -13,6 +16,8 @@ export class BlockService {
     private readonly configService: ConfigService,
     private readonly blockchainClient: BlockchainClient,
     private readonly blockRepository: BlockRepository,
+    private readonly txRepository: TransactionRepository,
+    private readonly receiptRepository: ReceiptRepository,
   ) {
     this.batchSize = BigInt(this.configService.get<number>('BATCH_SIZE') ?? 5);
     this.safeStep = BigInt(this.configService.get<number>('SAFE_STEP') ?? 10);
@@ -56,6 +61,11 @@ export class BlockService {
 
     // DB에 배치 저장
     await this.blockRepository.saveBatch(blocks);
+
+    const transactions: Transaction[] = blocks.flatMap(
+      (b) => b.transactions ?? [],
+    );
+    await this.txRepository.saveBatch(transactions);
 
     // 처리한 개수 반환
     return blocks.length;

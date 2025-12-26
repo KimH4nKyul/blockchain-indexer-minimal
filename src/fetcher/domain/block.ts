@@ -1,5 +1,4 @@
 import { Transaction } from './transaction';
-import { Log } from './log';
 
 export interface BlockProps {
   // 1. 식별자 (Identity)
@@ -20,7 +19,11 @@ export interface BlockProps {
   readonly gasUsed: bigint; // 실제 사용된 가스 - 네트워크 혼잡도 분석
   readonly gasLimit: bigint; // 가스 한도 - 블록 용량 파악
 
+  // 6. 영속 시간
   readonly createdAt?: Date;
+
+  // 7. 연관 데이터
+  readonly transactions?: Transaction[];
 }
 
 export class Block {
@@ -62,5 +65,9 @@ export class Block {
 
   get parentHash(): string {
     return this.props.parentHash;
+  }
+
+  get transactions(): Transaction[] | undefined {
+    return this.props.transactions;
   }
 }
