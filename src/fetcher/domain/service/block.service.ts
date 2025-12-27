@@ -3,7 +3,6 @@ import { BlockchainClient } from '../component/blockchain.client';
 import { Block } from '../block';
 import { BlockRepository } from '../repository/block.repository';
 import { ConfigService } from '@nestjs/config';
-import { ReceiptRepository } from '../repository/receipt.repository';
 import { TransactionRepository } from '../repository/transaction.repository';
 import { Transaction } from '../transaction';
 
@@ -17,7 +16,6 @@ export class BlockService {
     private readonly blockchainClient: BlockchainClient,
     private readonly blockRepository: BlockRepository,
     private readonly txRepository: TransactionRepository,
-    private readonly receiptRepository: ReceiptRepository,
   ) {
     this.batchSize = BigInt(this.configService.get<number>('BATCH_SIZE') ?? 5);
     this.safeStep = BigInt(this.configService.get<number>('SAFE_STEP') ?? 10);
@@ -62,6 +60,7 @@ export class BlockService {
     // DB에 배치 저장
     await this.blockRepository.saveBatch(blocks);
 
+    // TODO: 한 블록 내에 트랜잭션 개수가 많기 때문에 나눠서 저장할 방안을 강구해야 한다.
     const transactions: Transaction[] = blocks.flatMap(
       (b) => b.transactions ?? [],
     );

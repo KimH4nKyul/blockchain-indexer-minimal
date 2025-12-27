@@ -9,6 +9,7 @@ export interface LogProps {
   readonly createdAt?: Date;
 }
 
+// TODO: 스마트 컨트랙트 이벤트를 등록해야 해당 도메인을 사용할 수 있다. 컨트랙트 레지스터를 먼저 구현하자.
 export class Log {
   private constructor(private readonly props: LogProps) {}
 
@@ -57,7 +58,7 @@ export class Log {
     return this.props.logIndex;
   }
 
-  get createdAt(): Date | undefined{
+  get createdAt(): Date | undefined {
     return this.props.createdAt;
   }
 }

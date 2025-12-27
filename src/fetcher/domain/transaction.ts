@@ -5,7 +5,7 @@ export interface TransactionProps {
   readonly hash: string;
   readonly from: string;
   readonly to: string | null;
-  readonly value: bigint;
+  readonly value: string;
   readonly input: string;
   readonly blockHash: string;
 
@@ -48,7 +48,7 @@ export class Transaction {
     return this.props.to;
   }
 
-  get value(): bigint {
+  get value(): string {
     return this.props.value;
   }
 

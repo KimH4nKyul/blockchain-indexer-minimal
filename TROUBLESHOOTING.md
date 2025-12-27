@@ -178,3 +178,37 @@
 
 ### 8. 회고 (Retrospective)
 고가용성(HA) 아키텍처는 인프라 레벨뿐만 아니라 애플리케이션 코드 레벨에서도 지원해야 함. 라이브러리가 제공하는 고급 기능(Fallback, Rank)을 적극 활용하여 복잡한 로직을 간결하게 해결함.
+
+---
+
+## Case 6: 이더리움 큰 수(BigInt) 처리에 따른 DB 오버플로우
+
+### 1. 문제 식별 (Issue Identification)
+트랜잭션 저장 중 `PrismaClientUnknownRequestError`가 발생하며 프로세스가 중단됨.
+로그 상세: `Could not convert argument value Object... String("9999999951943936000")`
+
+### 2. 문제 정의 (Problem Definition)
+**"이더리움의 uint256 범위 vs 데이터베이스의 int64 범위 충돌"**
+이더리움의 Value(송금액)는 최대 `uint256`까지 지원하지만, Prisma와 PostgreSQL의 `BigInt` 타입은 `int64` (약 922경)까지만 저장할 수 있음. 테스트넷의 Faucet 등으로 인해 이 범위를 초과하는 큰 금액의 트랜잭션이 들어오자 오버플로우가 발생함.
+
+### 3. 대응 방안 (Proposed Solutions)
+- **A안**: `BigInt` 대신 `Decimal` 타입을 사용한다. (정밀도 보장, DB 연산 가능)
+- **B안**: `String` 타입을 사용한다. (가장 안전, 단순함)
+
+### 4. 방안 결정 (Decision)
+**B안 (String 타입으로 스키마 변경)** 을 채택.
+
+### 5. 결정 근거 (Rationale)
+- **안전성**: 블록체인의 256비트 정수를 손실 없이 완벽하게 저장하는 가장 확실한 방법은 문자열임.
+- **단순성**: 인덱서 내에서 DB 레벨의 복잡한 연산(SUM, AVG 등)이 당장 필요하지 않음.
+
+### 6. 구현 방법 (Implementation)
+1.  `schema.prisma`에서 `value` 필드 타입을 `String`으로 변경.
+2.  `TransactionPrismaRepository`에서 `BigInt` 값을 `.toString()`으로 변환하여 저장하도록 수정.
+3.  `npx prisma db push`로 DB 스키마 마이그레이션 수행 (주의: 기존 데이터 초기화됨).
+
+### 7. 최종 결과 (Final Result)
+10 ETH 이상의 큰 금액이나 `uint256` 최대치에 가까운 값도 에러 없이 정상적으로 저장됨.
+
+### 8. 회고 (Retrospective)
+블록체인 데이터를 다룰 때는 일반적인 웹 개발의 상식(정수는 int64면 충분하다)이 통하지 않음을 깨달음. 특히 금전적 가치와 관련된 필드는 설계 단계에서부터 `String`이나 `Decimal`을 고려해야 함.

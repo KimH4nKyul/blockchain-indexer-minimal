@@ -9,11 +9,15 @@ import { TransactionRepository } from './domain/repository/transaction.repositor
 import { TransactionPrismaRepository } from './infrastructure/repository/transaction.prisma.repository';
 import { ReceiptRepository } from './domain/repository/receipt.repository';
 import { ReceiptPrismaRepository } from './infrastructure/repository/receipt.prisma.repository';
+import { TransactionSynchronizer } from './application/transaction.synchronizer';
+import { TransactionService } from './domain/service/transactoin.service';
 
 @Module({
   providers: [
     BlockFetcher,
+    TransactionSynchronizer,
     BlockService,
+    TransactionService,
     {
       provide: BlockRepository,
       useClass: BlockPrismaRepository,

@@ -23,8 +23,8 @@ export class BlockFetcher implements OnApplicationBootstrap, OnModuleDestroy {
   // Node.js의 싱글 스레드 이벤트 루프를 차단하지 않으면서도, 블록이 많을 때는 빠르게, 없을 때는 리소스를 아끼며 동작하는 Fetcher가 되어야 한다.
   // 과거에 고려했던 것은 NestJS에서 제공하는 @Cron와 @Interval 이었다.
   onApplicationBootstrap() {
-    this.logger.log('🚀 Block fetcher initialized');
     this.isRunning = true;
+    this.logger.log('🚀 Block fetcher initialized');
 
     const loop = async () => {
       // isRunning이 false라면 즉시 리턴해 루프를 종료한다.

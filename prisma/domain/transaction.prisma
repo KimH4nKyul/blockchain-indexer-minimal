@@ -2,7 +2,7 @@ model Transaction {
   hash      String              @id
   from      String
   to        String?
-  value     BigInt
+  value     String
   input     String
   blockHash String
   receipt   TransactionReceipt?
