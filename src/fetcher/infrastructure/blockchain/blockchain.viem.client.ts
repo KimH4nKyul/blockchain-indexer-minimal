@@ -8,9 +8,12 @@ import {
   fallback,
   PublicClient,
   BlockNotFoundError,
+  TransactionReceiptNotFoundError,
 } from 'viem';
 import { sepolia } from 'viem/chains';
 import { ConfigService } from '@nestjs/config';
+import { Receipt } from '../../domain/receipt';
+import { Log } from '../../domain/log';
 
 @Injectable()
 export class BlockchainViemClient
@@ -22,6 +25,49 @@ export class BlockchainViemClient
 
   constructor(private readonly configService: ConfigService) {
     super();
+  }
+
+  public async fetchReceiptsInParallel(
+    transactions: Transaction[],
+  ): Promise<Receipt[]> {
+    const promises = transactions.map((tx) => this.fetchReceipt(tx.hash));
+    return await Promise.all(promises);
+  }
+
+  public async fetchReceipt(txHash: string, retries = 3): Promise<Receipt> {
+    try {
+      const rawReceipt = await this.client.getTransactionReceipt({
+        hash: txHash as `0x${string}`,
+      });
+
+      return Receipt.from({
+        ...rawReceipt,
+        logs: rawReceipt.logs.map((log) =>
+          Log.from({
+            address: log.address,
+            topics: log.topics,
+            data: log.data,
+            blockHash: log.blockHash,
+            transactionHash: log.transactionHash,
+            logIndex: log.logIndex,
+          }),
+        ),
+      });
+    } catch (error) {
+      if (retries > 0) {
+        if (
+          error instanceof TransactionReceiptNotFoundError ||
+          (error instanceof TypeError && error.message.includes('BigInt'))
+        ) {
+          this.logger.warn(
+            `⚠️ Failed to fetch receipt for ${txHash}. Retrying... (${retries} attempts left)`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return this.fetchReceipt(txHash, retries - 1);
+        }
+      }
+      throw error;
+    }
   }
 
   async currentBlockNumber(retries = 3): Promise<bigint> {

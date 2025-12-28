@@ -43,7 +43,11 @@ export class TransactionSynchronizer
             void loop();
           }, 9000);
         } else {
-          this.logger.log(`✅ Synced ${txsWithoutReceipt.length} transactions`);
+          const processedCount =
+            await this.txService.receiptSync(txsWithoutReceipt);
+          this.logger.log(
+            `✅ Synced ${processedCount} of ${txsWithoutReceipt.length} transactions`,
+          );
 
           setTimeout(() => {
             void loop();

@@ -2,10 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@shared/infrastructure';
 import { Transaction } from '../../domain/transaction';
 import { TransactionRepository } from '../../domain/repository/transaction.repository';
+import { Receipt } from '../../domain/receipt';
 
 @Injectable()
 export class TransactionPrismaRepository implements TransactionRepository {
   constructor(private readonly prismaService: PrismaService) {}
+
+  async saveReceipts(receipts: Receipt[]): Promise<number> {
+    if (receipts.length === 0) return 0;
+
+    const result = await this.prismaService.transactionReceipt.createMany({
+      data: receipts.map((receipt) => receipt.toPrimitives()),
+      skipDuplicates: true,
+    });
+
+    return result.count;
+  }
 
   // TODO: 이 메서드로 스케줄러가 리시트가 없는 트랜잭션을 찾을 수 있게 한다.
   async findWithoutReceipt(): Promise<Transaction[]> {
