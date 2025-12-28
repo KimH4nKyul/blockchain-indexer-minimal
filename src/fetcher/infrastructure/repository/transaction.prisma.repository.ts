@@ -11,19 +11,55 @@ export class TransactionPrismaRepository implements TransactionRepository {
   async saveReceipts(receipts: Receipt[]): Promise<number> {
     if (receipts.length === 0) return 0;
 
-    const result = await this.prismaService.transactionReceipt.createMany({
-      data: receipts.map((receipt) => receipt.toPrimitives()),
-      skipDuplicates: true,
+    // 1. 영수증 본체 데이터 준비 (logs 필드는 제외해야 함)
+    const receiptData = receipts.map((r) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { logs, ...primitives } = r.toPrimitives();
+      return primitives;
     });
 
-    return result.count;
+    // 2. 로그 데이터 추출 및 평탄화 (Flatten)
+    // id는 DB에서 자동 생성되므로 제외하고, 나머지 필드만 추출하여 타입 불일치 해결
+    const logData = receipts.flatMap((r) =>
+      r.logs.map((l) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, topics, ...rest } = l.toPrimitives();
+        return {
+          ...rest,
+          topics: JSON.stringify(topics), // 배열을 JSON 문자열로 변환하여 저장
+        };
+      }),
+    );
+
+    // 3. DB 트랜잭션으로 묶어서 저장 (원자성 보장)
+    return await this.prismaService.$transaction(async (tx) => {
+      // 영수증 저장
+      const result = await tx.transactionReceipt.createMany({
+        data: receiptData,
+        skipDuplicates: true,
+      });
+
+      // 로그 저장 (로그가 있는 경우에만)
+      if (logData.length > 0) {
+        await tx.log.createMany({
+          data: logData,
+          skipDuplicates: true,
+        });
+      }
+
+      return result.count;
+    });
   }
 
-  // TODO: 이 메서드로 스케줄러가 리시트가 없는 트랜잭션을 찾을 수 있게 한다.
-  async findWithoutReceipt(): Promise<Transaction[]> {
+  // 스케줄러가 리시트가 없는 트랜잭션을 일정량(limit)만 찾을 수 있게 한다. (유량 제어)
+  async findWithoutReceipt(limit: number): Promise<Transaction[]> {
     const entity = await this.prismaService.transaction.findMany({
       where: {
         receipt: null,
+      },
+      take: limit,
+      orderBy: {
+        createdAt: 'asc', // 오래된 것부터 순차적으로 처리
       },
     });
 

@@ -30,8 +30,19 @@ export class BlockchainViemClient
   public async fetchReceiptsInParallel(
     transactions: Transaction[],
   ): Promise<Receipt[]> {
-    const promises = transactions.map((tx) => this.fetchReceipt(tx.hash));
-    return await Promise.all(promises);
+    const results: Receipt[] = [];
+    const chunkSize = 10; // RPC Rate Limit(15~20 req/sec)을 고려하여 안전하게 10개씩 끊어서 요청
+
+    for (let i = 0; i < transactions.length; i += chunkSize) {
+      const chunk = transactions.slice(i, i + chunkSize);
+      const promises = chunk.map((tx) => this.fetchReceipt(tx.hash));
+      
+      // 10개씩 병렬 처리하고, 다 끝날 때까지 기다렸다가 다음 청크로 넘어감 (Sequential Batch)
+      const chunkResults = await Promise.all(promises);
+      results.push(...chunkResults);
+    }
+
+    return results;
   }
 
   public async fetchReceipt(txHash: string, retries = 3): Promise<Receipt> {

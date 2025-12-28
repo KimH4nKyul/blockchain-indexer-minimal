@@ -32,8 +32,9 @@ export class TransactionSynchronizer
       }
 
       try {
+        const batchSize = 50; // 한 번에 처리할 트랜잭션 개수 제한
         const txsWithoutReceipt =
-          await this.txService.unreceiptedTransactions();
+          await this.txService.unreceiptedTransactions(batchSize);
 
         if (txsWithoutReceipt.length === 0) {
           this.logger.log(

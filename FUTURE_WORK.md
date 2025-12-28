@@ -94,3 +94,44 @@ async saveBatch(transactions: Transaction[]): Promise<void> {
 *   DB 드라이버의 파라미터 제한 에러를 원천적으로 방지.
 *   단일 쿼리 부하를 낮추어 DB 연결 안정성 확보.
 *   대량 동기화(Backfill) 작업 시에도 끊김 없는 처리 가능.
+
+---
+
+## 3. RPC 속도 제한(Rate Limit) 대응: 동시성 제어
+
+### 배경 (Background)
+`ReceiptFetcher`는 한 번에 수십 개의 트랜잭션에 대한 영수증을 조회해야 한다.
+현재 구현된 `fetchReceiptsInParallel` 메서드는 `Promise.all`을 사용하여 동시에 모든 요청을 전송하는데, 이는 순간적으로 높은 RPS(Requests Per Second)를 유발한다.
+
+### 문제점 (Potential Issues)
+무료 또는 저가형 RPC 플랜(예: QuickNode Free Tier)은 초당 요청 수에 엄격한 제한(예: 15 req/sec)이 있다.
+트랜잭션 50개를 `Promise.all`로 동시에 요청하면 순간적으로 50 RPS가 되어, 네트워크 상태와 무관하게 **API 제공자 측에서 요청을 차단(429 Too Many Requests)**할 수 있다.
+
+### 해결 방안: Concurrency Control (동시성 제어)
+
+동시에 실행되는 비동기 요청의 개수를 제한하여 RPC 제공자의 허용 범위 내에서 요청을 처리하도록 개선한다.
+
+#### 구현 가이드
+1.  **배치 사이즈 조절**: `ReceiptFetcher`가 DB에서 트랜잭션을 가져올 때 개수(`LIMIT`)를 RPC 허용량 이하(예: 10~20개)로 줄인다.
+2.  **p-limit 도입**: `Promise.all` 대신 `p-limit` 라이브러리 등을 사용하여 클라이언트 내부에서 동시 실행 개수를 제한한다.
+
+```typescript
+import pLimit from 'p-limit';
+
+// ...
+
+public async fetchReceiptsInParallel(transactions: Transaction[]): Promise<Receipt[]> {
+  const limit = pLimit(10); // 동시에 10개까지만 실행
+  
+  const promises = transactions.map((tx) => 
+    limit(() => this.fetchReceipt(tx.hash))
+  );
+  
+  return await Promise.all(promises);
+}
+```
+
+### 기대 효과
+*   RPC 제공자의 Rate Limit 정책 준수 및 차단 방지.
+*   재시도(Retry) 횟수 감소로 인한 전체적인 처리 속도 향상.
+*   네트워크 대역폭의 효율적 사용.

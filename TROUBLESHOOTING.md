@@ -123,19 +123,18 @@
 
 ### 3. 문제 정의 (Problem Definition)
 **"제어되지 않은 클라이언트 요청 속도가 서버의 임계치를 초과함"**
-빠른 동기화를 위해 적용한 '즉시 재실행' 방식이 오히려 외부 시스템의 안정을 해치고, 결과적으로 RPC 노드로부터 차단되거나 불완전한 응답을 받는 부작용을 초래함.
+빠른 동기화를 위해 적용한 '즉시 재실행' 방식이 오히려 외부 시스템의 안정을 해치고, 역설적으로 전체 동기화 속도를 떨어뜨리고 있음(에러 및 재시도 비용 발생).
 
 ### 4. 대응 방안 (Proposed Solutions)
 - **A안**: 요청 속도 제한 라이브러리(Rate Limiter)를 도입한다.
 - **B안**: 루프 사이에 고정적인 지연 시간(Sleep)을 추가하기 위해 `setTimeout`을 활용한다.
 
 ### 5. 방안 결정 (Decision)
-**B안 (setTimeout 기반 Throttling)** 을 채택.
+**B안 (Throttling 적용)** 을 채택.
 
 ### 6. 결정 근거 (Rationale)
-- **이벤트 루프 효율성**: `setTimeout`은 대기 시간 동안 메인 스레드를 해제하므로 리소스 소모가 거의 없음.
-- **예의 바른 클라이언트 (Polite Client)**: 의도적인 1초의 휴식을 통해 RPC 노드의 Rate Limit을 준수하고, 일시적인 네트워크 병목 현상을 자연스럽게 회피할 수 있음.
-- **안정적 처리**: 속도를 소폭 희생하는 대신 데이터 누락이나 연결 끊김 없는 '지속 가능한' 수집 환경을 구축함.
+- **구현 용이성**: 복잡한 라이브러리 추가 없이 `setTimeout`만으로 충분히 목적을 달성할 수 있음.
+- **시스템 부하 감소**: 인덱서 자체의 CPU 점유율을 낮추고, 다른 비동기 작업(GC 등)에 여유를 줄 수 있음.
 
 ### 7. 구현 방법 (Implementation)
 `BlockFetcher`의 재귀 루프 호출 방식을 `setImmediate`에서 `setTimeout(..., 1000)`으로 변경하여, 배치 처리 성공 후에도 강제로 **1초간 대기**하도록 수정.
@@ -212,3 +211,74 @@
 
 ### 8. 회고 (Retrospective)
 블록체인 데이터를 다룰 때는 일반적인 웹 개발의 상식(정수는 int64면 충분하다)이 통하지 않음을 깨달음. 특히 금전적 가치와 관련된 필드는 설계 단계에서부터 `String`이나 `Decimal`을 고려해야 함.
+
+---
+
+## Case 7: 대량의 영수증 조회 시 RPC 속도 제한(Rate Limit) 초과
+
+### 1. 문제 식별 (Issue Identification)
+`ReceiptFetcher`가 미처리된 과거 트랜잭션(Backlog)을 동기화하는 과정에서 `RPCRequestError` 및 QuickNode의 `15/second request limit reached` 에러가 발생함.
+
+### 2. 문제 정의 (Problem Definition)
+**"제어되지 않은 병렬 요청(Burst)으로 인한 API 차단"**
+과거 데이터가 많이 쌓인 상태에서 인덱서가 `Promise.all`을 사용해 수백 개의 트랜잭션 영수증을 동시에 요청함. 이로 인해 순간 RPS(초당 요청 수)가 RPC 제공자의 허용 범위(예: 15 RPS)를 초과하여 차단당함.
+
+### 3. 대응 방안 (Proposed Solutions)
+- **A안**: 요청 실패 시 재시도(Retry)만 반복한다. (비효율적, 무한 루프 위험)
+- **B안**: 애플리케이션 레벨에서 이중 유량 제어(Double Flow Control)를 적용한다.
+
+### 4. 방안 결정 (Decision)
+**B안 (DB Limit + Request Chunking)** 을 채택.
+
+### 5. 결정 근거 (Rationale)
+- **근본적 해결**: 재시도는 사후 대처일 뿐, 근본적으로 요청 속도를 조절해야 함.
+- **안정성**: DB 부하와 네트워크 부하를 동시에 제어할 수 있음.
+
+### 6. 구현 방법 (Implementation)
+1.  **Service Layer**: DB에서 영수증 없는 트랜잭션을 조회할 때 `LIMIT 50`을 적용하여 한 번에 가져오는 작업량 자체를 제한함.
+2.  **Infrastructure Layer**: `fetchReceiptsInParallel` 내부에서 `chunkSize: 10`으로 요청을 쪼개어, 10개씩 순차적으로 병렬 처리(Sequential Batch)하도록 수정.
+
+### 7. 최종 결과 (Final Result)
+백로그(Backlog)가 아무리 많이 쌓여 있어도, 인덱서는 설정된 속도(Chunk Size)에 맞춰 꾸준하고 안정적으로 영수증을 처리함. RPC 에러가 완전히 사라짐.
+
+### 8. 회고 (Retrospective)
+외부 API를 사용할 때는 상대방의 제한 정책(Rate Limit)을 항상 염두에 두고, 클라이언트 측에서 능동적으로 속도를 제어(Throttling)하는 것이 시스템의 전체적인 처리량을 높이는 길임.
+
+---
+
+## Case 8: 영수증 및 로그 저장 시 발생하는 Prisma 제약 사항 및 타입 불일치
+
+### 1. 문제 식별 (Issue Identification)
+`TransactionReceipt`와 `Log`를 저장하는 `saveReceipts` 메서드 실행 중 세 가지 에러가 연달아 발생함.
+1.  `Unknown argument logs` (Prisma 관계 저장 에러)
+2.  `Type 'bigint' is not assignable to type 'number'` (Log ID 타입 불일치)
+3.  `Type 'string[]' is not assignable to type 'string'` (Log Topics 타입 불일치)
+
+### 2. 문제 정의 (Problem Definition)
+**"ORM의 대량 삽입(Bulk Insert) 제약과 도메인-DB 간의 타입 미스매치"**
+- **제약 사항**: Prisma의 `createMany`는 연관된 데이터(여기서는 `logs`)를 한 번에 저장하는 Nested Write를 지원하지 않음.
+- **타입 차이**: 도메인 엔티티는 `BigInt`와 `Array`를 사용하지만, DB 스키마는 `Int`(Auto Increment)와 `String`(JSON)을 요구함.
+
+### 3. 대응 방안 (Proposed Solutions)
+- **A안**: `createMany` 대신 `create`를 루프로 돌린다. (성능 저하 심각)
+- **B안**: 데이터를 분리(Split)하고 변환(Transform)하여 각각 저장한다.
+
+### 4. 방안 결정 (Decision)
+**B안 (분리 및 변환 저장)** 을 채택.
+
+### 5. 결정 근거 (Rationale)
+- **성능**: 대량 데이터를 다룰 때 `createMany`의 성능 이점은 절대적임.
+- **유연성**: 리포지토리 계층에서 도메인 모델을 DB 모델로 매핑(Mapping)하는 것이 올바른 책임 할당임.
+
+### 6. 구현 방법 (Implementation)
+1.  **데이터 분리**: `Receipt`에서 `logs` 필드를 `Omit`하여 추출.
+2.  **타입 변환**:
+    - `id`: DB가 자동 생성하므로 저장 시 제외.
+    - `topics`: `string[]`을 `JSON.stringify()`를 통해 `string`으로 변환.
+3.  **트랜잭션 저장**: `prisma.$transaction`을 사용하여 영수증 저장과 로그 저장을 원자적으로 실행.
+
+### 7. 최종 결과 (Final Result)
+영수증과 로그가 데이터 유실이나 에러 없이 DB에 정확하게 저장됨.
+
+### 8. 회고 (Retrospective)
+ORM을 사용할 때는 '편리함' 뒤에 숨겨진 '제약 사항'을 정확히 파악해야 함. 특히 `createMany` 같은 고성능 API는 엄격한 규칙(Flat Object only)을 요구하므로, 저장 전 데이터 가공(Preprocessing) 과정이 필수적임.

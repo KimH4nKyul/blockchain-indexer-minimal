@@ -19,7 +19,9 @@ export class TransactionService {
     return await this.txRepository.saveReceipts(receipts);
   }
 
-  public async unreceiptedTransactions(): Promise<Transaction[]> {
-    return await this.txRepository.findWithoutReceipt();
+  public async unreceiptedTransactions(
+    limit: number = 50,
+  ): Promise<Transaction[]> {
+    return await this.txRepository.findWithoutReceipt(limit);
   }
 }
